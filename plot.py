@@ -3,65 +3,85 @@
 # dependencies = ["matplotlib"]
 # ///
 
-"""
-Read the file in data/, make one picture, save it to out/.
-
-    uv run plot.py
-
-Three parts, and you will replace all three: rows() reads the file the way *your*
-file needs reading, the loop in main() picks the numbers out of it, and the plot at
-the bottom is the transformation you chose. Print before you plot.
-"""
-
-import csv
 from pathlib import Path
+from datetime import datetime
+import xml.etree.ElementTree as ET
 
 import matplotlib.pyplot as plt
 
-FILE = "hko-daily-mean-temperature-2026.csv"   # CHANGE ME: the same name as in fetch.py
-PICTURE = "plot.png"                           # what goes into out/, and into the README
 
 HERE = Path(__file__).parent
-DATA = HERE / "data" / FILE
-OUT = HERE / "out"
+DATA = HERE / "data" / "hong-kong-air-quality-24h.xml"
+OUT = HERE / "out" / "plot.png"
+
+STATION = "Central/Western"
 
 
-def rows(path):
-    """The file as a list of lists, one per line. The Observatory puts three lines
-    of titles above the table and a legend below it, so keep only the lines that
-    start with a year."""
-    kept = []
-    with path.open(encoding="utf-8-sig", newline="") as handle:
-        for line in csv.reader(handle):
-            if line and line[0].isdigit():
-                kept.append(line)
-    return kept
+# Read the XML file
+tree = ET.parse(DATA)
+root = tree.getroot()
+
+times = []
+pm25_values = []
 
 
-def main():
-    table = rows(DATA)
-    print(f"{DATA.name}: {len(table)} rows. The first one: {table[0]}")
+# Find every air-quality measurement
+for item in root.iter("PollutantConcentration"):
 
-    days, values = [], []
-    for i, (year, month, day, value, quality) in enumerate(table):   # the loop over the numbers
-        if value == "***":                   # the Observatory's word for "missing"
-            continue
-        days.append(i + 1)
-        values.append(float(value))          # it arrived as text; make it a number
-    print(f"{len(values)} values, from {min(values)} to {max(values)}")
+    station = item.findtext("StationName")
+    datetime_text = item.findtext("DateTime")
+    pm25_text = item.findtext("PM2.5")
 
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(days, values, color="#d6591d", linewidth=1.5)
-    ax.set_xlabel("day of 2026")
-    ax.set_ylabel("daily mean temperature, °C")
-    ax.set_title("Hong Kong Observatory, 2026 so far")
-    fig.tight_layout()
+    # Only use Central/Western station
+    if station != STATION:
+        continue
 
-    OUT.mkdir(exist_ok=True)
-    fig.savefig(OUT / PICTURE, dpi=150)
-    print(f"saved out/{PICTURE}")
-    plt.show()
+    # Skip missing PM2.5 values
+    if not pm25_text or pm25_text.strip() == "-":
+        continue
+
+    # Turn text into real Python values
+    time = datetime.strptime(
+        datetime_text,
+        "%a, %d %b %Y %H:%M:%S %z"
+    )
+
+    pm25 = float(pm25_text)
+
+    times.append(time)
+    pm25_values.append(pm25)
 
 
-if __name__ == "__main__":
-    main()
+print("Station:", STATION)
+print("Number of valid measurements:", len(pm25_values))
+print("First time:", times[0])
+print("First PM2.5 value:", pm25_values[0])
+print("PM2.5 type:", type(pm25_values[0]))
+
+
+# Make the picture
+fig, ax = plt.subplots(figsize=(11, 6))
+
+ax.plot(
+    times,
+    pm25_values,
+    marker="o"
+)
+
+ax.set_title("Hong Kong PM2.5 — Past 24 Hours")
+ax.set_xlabel("Time")
+ax.set_ylabel("PM2.5 concentration (µg/m³)")
+
+ax.grid(alpha=0.25)
+
+fig.autofmt_xdate()
+fig.tight_layout()
+
+
+# Save the picture
+OUT.parent.mkdir(exist_ok=True)
+plt.savefig(OUT, dpi=150)
+
+print("Saved:", OUT)
+
+plt.show()
