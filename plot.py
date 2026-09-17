@@ -14,73 +14,173 @@ HERE = Path(__file__).parent
 DATA = HERE / "data" / "hong-kong-air-quality-24h.xml"
 OUT = HERE / "out" / "plot.png"
 
-STATION = "Central/Western"
 
+# --------------------------------------------------
+# 1. Read XML
+# --------------------------------------------------
 
-# Read the XML file
 tree = ET.parse(DATA)
 root = tree.getroot()
 
-times = []
-pm25_values = []
 
+# --------------------------------------------------
+# 2. Collect PM2.5 measurements
+# --------------------------------------------------
 
-# Find every air-quality measurement
+records = []
+
 for item in root.iter("PollutantConcentration"):
 
     station = item.findtext("StationName")
     datetime_text = item.findtext("DateTime")
     pm25_text = item.findtext("PM2.5")
 
-    # Only use Central/Western station
-    if station != STATION:
+    if not station or not datetime_text:
         continue
 
-    # Skip missing PM2.5 values
-    if not pm25_text or pm25_text.strip() == "-":
-        continue
-
-    # Turn text into real Python values
     time = datetime.strptime(
         datetime_text,
         "%a, %d %b %Y %H:%M:%S %z"
     )
 
-    pm25 = float(pm25_text)
+    # Missing data becomes None
+    if not pm25_text or pm25_text.strip() == "-":
+        pm25 = None
+    else:
+        pm25 = float(pm25_text)
 
-    times.append(time)
-    pm25_values.append(pm25)
-
-
-print("Station:", STATION)
-print("Number of valid measurements:", len(pm25_values))
-print("First time:", times[0])
-print("First PM2.5 value:", pm25_values[0])
-print("PM2.5 type:", type(pm25_values[0]))
+    records.append((station, time, pm25))
 
 
-# Make the picture
-fig, ax = plt.subplots(figsize=(11, 6))
+# --------------------------------------------------
+# 3. Find all stations and times
+# --------------------------------------------------
 
-ax.plot(
-    times,
-    pm25_values,
-    marker="o"
+stations = sorted(set(record[0] for record in records))
+times = sorted(set(record[1] for record in records))
+
+print("Number of stations:", len(stations))
+print("Number of times:", len(times))
+
+
+# --------------------------------------------------
+# 4. Build the matrix
+# --------------------------------------------------
+
+matrix = []
+
+for station in stations:
+
+    row = []
+
+    for time in times:
+
+        value = None
+
+        for record_station, record_time, pm25 in records:
+
+            if record_station == station and record_time == time:
+                value = pm25
+                break
+
+        row.append(value)
+
+    matrix.append(row)
+
+
+# Matplotlib needs missing values as NaN
+matrix_for_plot = [
+    [
+        float("nan") if value is None else value
+        for value in row
+    ]
+    for row in matrix
+]
+
+
+# --------------------------------------------------
+# 5. Draw heatmap
+# --------------------------------------------------
+
+fig, ax = plt.subplots(figsize=(14, 8))
+
+cmap = plt.colormaps["YlOrRd"].copy()
+cmap.set_bad("#e6e6e6")
+
+image = ax.imshow(
+    matrix_for_plot,
+    aspect="auto",
+    interpolation="nearest",
+    cmap=cmap
 )
 
-ax.set_title("Hong Kong PM2.5 — Past 24 Hours")
+
+# --------------------------------------------------
+# 6. Labels
+# --------------------------------------------------
+
+ax.set_yticks(range(len(stations)))
+ax.set_yticklabels(stations)
+
+# Show every 3rd time label
+tick_positions = list(range(0, len(times), 3))
+
+ax.set_xticks(tick_positions)
+
+ax.set_xticklabels(
+    [times[i].strftime("%d %b\n%H:%M") for i in tick_positions]
+)
+
+ax.set_title(
+    "Hong Kong PM2.5 — Past 24 Hours",
+    fontsize=20,
+    loc="left",
+    pad=28
+)
+
+ax.text(
+    0,
+    1.02,
+    "Hourly PM2.5 concentration across 18 air-quality monitoring stations",
+    transform=ax.transAxes,
+    fontsize=11
+)
+
 ax.set_xlabel("Time")
-ax.set_ylabel("PM2.5 concentration (µg/m³)")
+ax.set_ylabel("Air Quality Monitoring Station")
 
-ax.grid(alpha=0.25)
 
-fig.autofmt_xdate()
+# --------------------------------------------------
+# 7. Colour scale
+# --------------------------------------------------
+
+colorbar = fig.colorbar(image, ax=ax)
+
+colorbar.set_label(
+    "PM2.5 concentration (µg/m³)"
+)
+ax.text(
+    1,
+    -0.12,
+    "Grey = missing data  |  Source: Hong Kong Environmental Protection Department",
+    transform=ax.transAxes,
+    ha="right",
+    fontsize=9
+)
+
+# --------------------------------------------------
+# 8. Save
+# --------------------------------------------------
+
 fig.tight_layout()
 
-
-# Save the picture
 OUT.parent.mkdir(exist_ok=True)
-plt.savefig(OUT, dpi=150)
+
+plt.savefig(
+    OUT,
+    dpi=180,
+    bbox_inches="tight"
+)
 
 print("Saved:", OUT)
 
