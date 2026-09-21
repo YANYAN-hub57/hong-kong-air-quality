@@ -1,6 +1,21 @@
 # Hong Kong PM2.5 — Past 24 Hours
 
+## Particle Field
+
+![Hong Kong PM2.5 Particle Field](out/particle-field.png)
+
+This visualization transforms measured PM2.5 concentrations from 18 Hong Kong air-quality monitoring stations over 24 hours into an abstract particle field.
+
+The particle surface is deformed by the measured PM2.5 values. Higher PM2.5 concentrations create stronger local displacement in the form.
+
+The particle field is an abstract visual representation of the measurements. It does not represent the physical location or movement of individual PM2.5 particles.
+
+## Data Overview
+
 ![Hong Kong PM2.5 — Past 24 Hours](out/plot.png)
+
+The heatmap provides a more direct view of the original measurements across monitoring stations and time.
+
 ### Animated visualization
 
 ![Hong Kong PM2.5 animation](out/pm25-animation.gif)
