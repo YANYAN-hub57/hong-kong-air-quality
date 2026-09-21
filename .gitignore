@@ -1,5 +1,5 @@
 # Made from data/ on every run. Commit out/; never commit site/.
-site/
+
 data/cache/
 
 # Machinery, not work.
