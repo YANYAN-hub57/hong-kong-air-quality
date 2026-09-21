@@ -1,6 +1,15 @@
 # Hong Kong PM2.5 — Past 24 Hours
 
 ![Hong Kong PM2.5 — Past 24 Hours](out/plot.png)
+### Animated visualization
+
+![Hong Kong PM2.5 animation](out/pm25-animation.gif)
+
+### Interactive visualization
+
+Explore the data interactively to inspect individual monitoring stations, times, and PM2.5 measurements.
+
+[Open the interactive visualization](site/index.html)
 
 ## The phenomenon
 
