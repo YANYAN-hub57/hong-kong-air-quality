@@ -6,35 +6,39 @@
 
 ### Interactive Particle Field
 
-The particle field transforms 24 hours of PM2.5 measurements from 18 Hong Kong monitoring stations into a dynamic, interactive form.
+The particle field transforms 24 hours of PM2.5 measurements from 18 Hong Kong air-quality monitoring stations into a dynamic, interactive form.
 
-Each particle band represents a monitoring station. Particle colour is mapped to PM2.5 concentration, from purple for lower values to yellow for higher values within this dataset. The shape changes as the measurements change over time.
+Each particle band represents a monitoring station. PM2.5 concentration affects the deformation of the particle field and is also mapped to colour, moving from purple for lower values through pink and orange to yellow for higher values within this dataset.
 
-Click a particle to inspect its monitoring station, PM2.5 value, and time. Use the timeline or Play button to explore how the field changes across the 24-hour period.
+As the timeline moves through the 24-hour period, the field changes according to the measurements recorded at each hour.
+
+Click a particle to inspect its monitoring station, PM2.5 value, and time. Use the timeline or Play/Pause button to explore how the field changes over time.
 
 [Open the interactive particle field →](https://yanyan-hub57.github.io/hong-kong-air-quality/site/)
 
-This visualization transforms measured PM2.5 concentrations from 18 Hong Kong air-quality monitoring stations over 24 hours into an abstract particle field.
-
-The particle surface is deformed by the measured PM2.5 values. Higher PM2.5 concentrations create stronger local displacement in the form.
-
-The particle field is an abstract visual representation of the measurements. It does not represent the physical location or movement of individual PM2.5 particles.
+The particle field is an abstract visual representation of measured data. It does not represent the geographic position of the monitoring stations or the physical shape and movement of individual PM2.5 particles.
 
 ## Data Overview
 
 ![Hong Kong PM2.5 — Past 24 Hours](out/plot.png)
 
-The heatmap provides a more direct view of the original measurements across monitoring stations and time.
+The heatmap provides a more direct view of the original measurements. Each row represents a monitoring station, each column represents an hour, and each cell represents one PM2.5 measurement.
 
-### Animated visualization
+The heatmap acts as a reference for understanding the more experimental particle-field transformation.
+
+### Animated Visualization
 
 ![Hong Kong PM2.5 animation](out/pm25-animation.gif)
 
+The animation reveals the hourly measurements progressively, providing another way to observe change through time.
+
 ## The phenomenon
 
-This project explores how PM2.5 air pollution changes across Hong Kong over a 24-hour period. PM2.5 is fine particulate matter in the air. I wanted to compare measurements from different monitoring stations and ask: how does PM2.5 concentration vary across Hong Kong and across different hours of the day?
+This project explores how PM2.5 air pollution changes across Hong Kong over a 24-hour period. PM2.5 is fine particulate matter in the air.
 
-I chose this phenomenon because air pollution is normally invisible. Turning the measurements into a picture makes changes across time and monitoring locations easier to see and compare.
+I wanted to compare measurements from different monitoring stations and ask: how does PM2.5 concentration vary across Hong Kong and across different hours of the day?
+
+I chose this phenomenon because air pollution is normally invisible. Turning measured concentrations into visual form makes differences across time and monitoring stations easier to explore.
 
 ## The source
 
@@ -42,27 +46,53 @@ The data comes from the Hong Kong Environmental Protection Department's Air Qual
 
 https://www.aqhi.gov.hk/en/download/past-24-hours-pollutant-concentration.html
 
-The raw XML file is downloaded by `fetch.py` and stored as `data/hong-kong-air-quality-24h.xml`. It contains hourly pollutant measurements from 18 air-quality monitoring stations. For this visualization, I use the station name, date and time, and PM2.5 concentration. PM2.5 is measured in µg/m³.
+The raw XML file is downloaded by `fetch.py` and stored as `data/hong-kong-air-quality-24h.xml`.
 
-Most stations contain 24 valid PM2.5 measurements in this dataset, while some stations have missing measurements. Tuen Mun has no valid PM2.5 measurements in the downloaded 24-hour period.
+It contains hourly pollutant measurements from 18 air-quality monitoring stations. For this project, I use three fields: monitoring station, date and time, and PM2.5 concentration. PM2.5 is measured in µg/m³.
 
-## What the picture shows
+Most stations contain 24 valid PM2.5 measurements in this downloaded dataset, while some measurements are missing. Tuen Mun has no valid PM2.5 measurements in this particular 24-hour dataset.
 
-The picture transforms the PM2.5 measurements into a heatmap. Each row represents an air-quality monitoring station, each column represents an hour, and each cell represents one PM2.5 measurement.
+Missing measurements are kept as missing rather than estimated or replaced with invented values.
 
-Time becomes horizontal position, monitoring station becomes vertical position, and PM2.5 concentration becomes colour intensity. Lighter yellow cells represent lower PM2.5 concentrations, while orange and red cells represent higher concentrations. Grey cells represent missing data, not zero pollution.
+## How the data becomes the visualization
 
-This transformation makes temporal and station-to-station patterns visible in one picture. However, it hides the geographic locations of the monitoring stations and other pollutants such as PM10, NO2, O3, and SO2. It also does not estimate missing measurements; missing values remain visible as grey cells.
+The project uses the same measured dataset in several visual forms.
+
+In the heatmap, time becomes horizontal position, monitoring station becomes vertical position, and PM2.5 concentration becomes colour intensity. Yellow represents lower concentrations, while orange and red represent higher concentrations. Grey represents missing measurements.
+
+In the particle field, the same measurements are transformed into an abstract spatial system. Each monitoring station becomes a particle band. PM2.5 measurements influence the local deformation of the field, while colour provides an additional visual encoding of concentration.
+
+The colour scale runs from purple for lower PM2.5 values through pink and orange to yellow for higher values within the current dataset.
+
+Time becomes interaction: moving the timeline or pressing Play changes the field according to the measurements recorded at each hour.
+
+This means the visualization follows the transformation:
+
+**measured PM2.5 data → station and time structure → visual mapping → particle deformation → interaction**
+
+## What the visualization shows and hides
+
+The heatmap makes the original station-by-time structure easy to compare. It provides a relatively direct representation of the measurements.
+
+The particle field intentionally sacrifices some of that direct readability to explore how numerical environmental data can produce an expressive visual form.
+
+The interactive information panel restores access to exact measurements: selecting a particle reveals its monitoring station, PM2.5 value, and time.
+
+The visualization does not show the geographic positions of the monitoring stations. It also does not show other pollutants such as PM10, NO2, O3, or SO2.
+
+The particle geometry should not be interpreted as the physical shape of air pollution. It is a visual mapping generated from the dataset.
 
 ## Animation and interaction
 
-I extended the static heatmap in two ways.
+I developed three complementary representations of the same dataset.
 
-First, `animate.py` turns the 24-hour dataset into an animation. Each frame reveals another hour of measurements, so time is represented not only as horizontal position but also as movement.
+`plot.py` creates the static heatmap, which provides an overview of the original measurements.
 
-Second, `interactive.py` creates an interactive HTML visualization. The heatmap allows the viewer to hover over individual cells to inspect the monitoring station, time, and exact PM2.5 measurement. Missing measurements remain blank instead of being estimated.
+`animate.py` creates an animated heatmap that reveals the measurements through time.
 
-The static image gives an overview of the complete dataset, the animation reveals the measurements through time, and the interactive version allows the viewer to inspect individual values.
+`interactive.py` creates the interactive particle field. The viewer can select particles to inspect individual measurements and use the timeline or Play/Pause control to move through the 24-hour period.
+
+Together, these representations move from direct data comparison toward a more experimental and interactive interpretation while remaining connected to the original measurements.
 
 ## Run it
 
@@ -84,11 +114,20 @@ Create the animation:
 uv run animate.py
 ```
 
-Create the interactive visualization:
+Create the static particle field:
+
+```bash
+uv run particle_static.py
+```
+
+Create the interactive particle field:
 
 ```bash
 uv run interactive.py
 ```
 
-The interactive visualization is saved as `site/index.html`. Open this file in a web browser to explore individual PM2.5 measurements.
+The interactive visualization is saved as `site/index.html`.
 
+Open it locally in a web browser, or view the published version:
+
+[Open the interactive particle field →](https://yanyan-hub57.github.io/hong-kong-air-quality/site/)
