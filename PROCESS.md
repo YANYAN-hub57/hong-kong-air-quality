@@ -35,3 +35,17 @@ I then created `interactive.py` using Plotly. The interactive version allows the
 I kept the original static heatmap because it provides a clear overview of the complete dataset. The animation and interactive visualization are additional experiments rather than replacements for the static output.
 
 Missing measurements remain missing in all versions. I did not interpolate or invent values that were not present in the original dataset.
+
+## Particle field iteration
+
+After developing the heatmap and animated visualization, I experimented with a more abstract way of representing the same PM2.5 dataset.
+
+I first created a static particle field. Instead of displaying each measurement as a rectangular heatmap cell, I mapped the measurements into a continuous field of particles. The particle structure is generated from the same 18 monitoring stations and 24 hourly time points used in the earlier visualizations.
+
+I then developed the particle field into an interactive visualization. Each particle band represents a monitoring station, while PM2.5 concentration influences the colour and form of the field. Within the current dataset, lower measurements are mapped toward purple and higher measurements toward yellow.
+
+The interactive version also adds a 24-hour timeline. The viewer can drag the timeline or press Play to observe how the field changes over time. Clicking a particle highlights its monitoring station and displays the station name, exact PM2.5 measurement, and time.
+
+I kept the original heatmap because it provides a more direct representation of the source data. The particle field is an additional experiment that explores how the same measurements can be translated into a more expressive visual form while still allowing individual values to be inspected.
+
+Missing measurements remain explicitly marked as missing. I did not interpolate or invent PM2.5 values.

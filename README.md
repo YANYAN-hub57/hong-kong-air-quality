@@ -4,6 +4,16 @@
 
 ![Hong Kong PM2.5 Particle Field](out/particle-field.png)
 
+### Interactive Particle Field
+
+The particle field transforms 24 hours of PM2.5 measurements from 18 Hong Kong monitoring stations into a dynamic, interactive form.
+
+Each particle band represents a monitoring station. Particle colour is mapped to PM2.5 concentration, from purple for lower values to yellow for higher values within this dataset. The shape changes as the measurements change over time.
+
+Click a particle to inspect its monitoring station, PM2.5 value, and time. Use the timeline or Play button to explore how the field changes across the 24-hour period.
+
+[Open the interactive particle field →](https://yanyan-hub57.github.io/hong-kong-air-quality/site/)
+
 This visualization transforms measured PM2.5 concentrations from 18 Hong Kong air-quality monitoring stations over 24 hours into an abstract particle field.
 
 The particle surface is deformed by the measured PM2.5 values. Higher PM2.5 concentrations create stronger local displacement in the form.
@@ -19,12 +29,6 @@ The heatmap provides a more direct view of the original measurements across moni
 ### Animated visualization
 
 ![Hong Kong PM2.5 animation](out/pm25-animation.gif)
-
-### Interactive visualization
-
-Explore the data interactively to inspect individual monitoring stations, times, and PM2.5 measurements.
-
-[Open the interactive visualization →](https://yanyan-hub57.github.io/hong-kong-air-quality/site/)
 
 ## The phenomenon
 
