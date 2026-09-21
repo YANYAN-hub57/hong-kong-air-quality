@@ -26,9 +26,41 @@ Time becomes horizontal position, monitoring station becomes vertical position, 
 
 This transformation makes temporal and station-to-station patterns visible in one picture. However, it hides the geographic locations of the monitoring stations and other pollutants such as PM10, NO2, O3, and SO2. It also does not estimate missing measurements; missing values remain visible as grey cells.
 
+## Animation and interaction
+
+I extended the static heatmap in two ways.
+
+First, `animate.py` turns the 24-hour dataset into an animation. Each frame reveals another hour of measurements, so time is represented not only as horizontal position but also as movement.
+
+Second, `interactive.py` creates an interactive HTML visualization. The heatmap allows the viewer to hover over individual cells to inspect the monitoring station, time, and exact PM2.5 measurement. Missing measurements remain blank instead of being estimated.
+
+The static image gives an overview of the complete dataset, the animation reveals the measurements through time, and the interactive version allows the viewer to inspect individual values.
+
 ## Run it
+
+Fetch the source data:
 
 ```bash
 uv run fetch.py
+```
+
+Create the static heatmap:
+
+```bash
 uv run plot.py
+```
+
+Create the animation:
+
+```bash
+uv run animate.py
+```
+
+Create the interactive visualization:
+
+```bash
+uv run interactive.py
+```
+
+The interactive visualization is saved as `site/index.html`. Open this file in a web browser to explore individual PM2.5 measurements.
 

@@ -23,3 +23,15 @@ I rejected the first line-chart version because it only represented Central/West
 During development, I also created a file called `inspect.py` to inspect the XML data. This caused an import error because `inspect` is also the name of a Python standard-library module used by Matplotlib. I renamed the file to `check_data.py`, which fixed the conflict.
 
 I did not silently remove or estimate missing PM2.5 measurements. Some stations have fewer than 24 valid values, and Tuen Mun has no valid PM2.5 measurements in this downloaded dataset. I kept these gaps visible rather than creating values that were not present in the source data.
+
+## Further iteration
+
+After creating the static heatmap, I explored two additional ways of representing time.
+
+I created `animate.py` to reveal the PM2.5 measurements hour by hour. I kept the same colour scale throughout the animation so that the meaning of colour remains consistent between frames.
+
+I then created `interactive.py` using Plotly. The interactive version allows the viewer to hover over individual measurements and inspect the monitoring station, time, and exact PM2.5 value.
+
+I kept the original static heatmap because it provides a clear overview of the complete dataset. The animation and interactive visualization are additional experiments rather than replacements for the static output.
+
+Missing measurements remain missing in all versions. I did not interpolate or invent values that were not present in the original dataset.
