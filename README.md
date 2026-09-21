@@ -9,7 +9,7 @@
 
 Explore the data interactively to inspect individual monitoring stations, times, and PM2.5 measurements.
 
-[Open the interactive visualization](site/index.html)
+[Open the interactive visualization →](https://yanyan-hub57.github.io/hong-kong-air-quality/site/)
 
 ## The phenomenon
 
