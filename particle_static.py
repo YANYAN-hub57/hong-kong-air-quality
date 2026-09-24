@@ -13,7 +13,6 @@ from matplotlib.colors import LinearSegmentedColormap
 
 
 HERE = Path(__file__).parent
-
 DATA = HERE / "data" / "hong-kong-air-quality-24h.xml"
 OUT = HERE / "out" / "particle-field.png"
 
@@ -22,41 +21,47 @@ OUT = HERE / "out" / "particle-field.png"
 # 1. READ REAL PM2.5 DATA
 # --------------------------------------------------
 
-tree = ET.parse(DATA)
-root = tree.getroot()
+def load_pm25_data(path):
+    """Read PM2.5 measurements from the committed AQHI XML file."""
 
-records = []
+    tree = ET.parse(path)
+    root = tree.getroot()
 
-for item in root.findall(".//PollutantConcentration"):
+    records = []
 
-    station = item.findtext("StationName")
-    time_text = item.findtext("DateTime")
-    pm25_text = item.findtext("PM2.5")
+    for item in root.findall(".//PollutantConcentration"):
+        station = item.findtext("StationName")
+        time_text = item.findtext("DateTime")
+        pm25_text = item.findtext("PM2.5")
 
-    if not station or not time_text:
-        continue
+        if not station or not time_text:
+            continue
 
-    try:
-        time = datetime.strptime(
-            time_text,
-            "%a, %d %b %Y %H:%M:%S %z",
+        try:
+            time = datetime.strptime(
+                time_text,
+                "%a, %d %b %Y %H:%M:%S %z",
+            )
+        except ValueError:
+            continue
+
+        try:
+            pm25 = float(pm25_text)
+        except (TypeError, ValueError):
+            pm25 = None
+
+        records.append(
+            {
+                "station": station,
+                "time": time,
+                "pm25": pm25,
+            }
         )
-    except ValueError:
-        continue
 
-    try:
-        pm25 = float(pm25_text)
-    except (TypeError, ValueError):
-        pm25 = None
+    return records
 
-    records.append(
-        {
-            "station": station,
-            "time": time,
-            "pm25": pm25,
-        }
-    )
 
+records = load_pm25_data(DATA)
 
 stations = sorted({r["station"] for r in records})
 times = sorted({r["time"] for r in records})
@@ -66,7 +71,7 @@ print("Times:", len(times))
 
 
 # --------------------------------------------------
-# 2. CREATE 18 × 24 DATA MATRIX
+# 2. CREATE STATION × TIME MATRIX
 # --------------------------------------------------
 
 matrix = np.full(
@@ -85,7 +90,6 @@ time_index = {
 }
 
 for record in records:
-
     if record["pm25"] is None:
         continue
 
@@ -101,252 +105,425 @@ if len(valid) == 0:
     raise RuntimeError("No valid PM2.5 measurements found.")
 
 
-minimum = np.nanmin(matrix)
-maximum = np.nanmax(matrix)
-mean = np.nanmean(matrix)
-
-print("Minimum PM2.5:", round(minimum, 1))
-print("Maximum PM2.5:", round(maximum, 1))
-print("Average PM2.5:", round(mean, 1))
+print("Minimum PM2.5:", round(np.nanmin(matrix), 1))
+print("Maximum PM2.5:", round(np.nanmax(matrix), 1))
+print("Average PM2.5:", round(np.nanmean(matrix), 1))
 
 
-normalized = (
-    (matrix - minimum)
-    / max(maximum - minimum, 1e-9)
+# --------------------------------------------------
+# 3. ONE HONG KONG VALUE FOR EACH HOUR
+# --------------------------------------------------
+
+# Median is used instead of mean so that one unusually high
+# station does not dominate the overall hourly form.
+
+hourly_pm25 = np.nanmedian(matrix, axis=0)
+
+valid_hourly = hourly_pm25[np.isfinite(hourly_pm25)]
+
+hour_min = np.nanmin(valid_hourly)
+hour_max = np.nanmax(valid_hourly)
+
+hourly_normalized = (
+    (hourly_pm25 - hour_min)
+    / max(hour_max - hour_min, 1e-9)
+)
+
+# Replace a missing hourly aggregate only for drawing continuity.
+# The original station measurements remain untouched.
+hourly_normalized = np.nan_to_num(
+    hourly_normalized,
+    nan=0.0,
 )
 
 
 # --------------------------------------------------
-# 3. PARTICLE GRID
+# 4. CREATE A SMOOTH 24-HOUR CURVE
 # --------------------------------------------------
 
-ROWS = 125
-COLS = 165
+hours = np.arange(len(times))
 
-u = np.linspace(-np.pi, np.pi, COLS)
-v = np.linspace(-np.pi, np.pi, ROWS)
-
-U, V = np.meshgrid(u, v)
-
-
-# --------------------------------------------------
-# 4. BASE ORGANIC FORM
-# --------------------------------------------------
-
-radius = (
-    2.35
-    + 0.30 * np.sin(3 * U)
-    + 0.22 * np.cos(4 * V)
-    + 0.18 * np.sin(2 * U + 3 * V)
-    + 0.12 * np.cos(5 * U - V)
+smooth_x = np.linspace(
+    0,
+    len(times) - 1,
+    900,
 )
 
-
-# --------------------------------------------------
-# 5. LET REAL PM2.5 DATA DEFORM THE FORM
-# --------------------------------------------------
-
-for i in range(len(stations)):
-
-    for j in range(len(times)):
-
-        value = normalized[i, j]
-
-        if not np.isfinite(value):
-            continue
-
-        data_u = (
-            j / max(len(times) - 1, 1)
-        ) * 2 * np.pi - np.pi
-
-        data_v = (
-            i / max(len(stations) - 1, 1)
-        ) * 2 * np.pi - np.pi
-
-        distance = (
-            (U - data_u) ** 2
-            + (V - data_v) ** 2
-        )
-
-        influence = np.exp(
-            -distance / 0.20
-        )
-
-        radius += (
-            influence
-            * value
-            * 0.55
-        )
-
-
-# --------------------------------------------------
-# 6. CONVERT SURFACE INTO 3D PARTICLES
-# --------------------------------------------------
-
-X = (
-    radius
-    * np.cos(V)
-    * np.cos(U)
+smooth_pm25 = np.interp(
+    smooth_x,
+    hours,
+    hourly_normalized,
 )
 
-Y = (
-    radius
-    * np.cos(V)
-    * np.sin(U)
-)
+# Data controls vertical displacement.
+# Centre around zero so the form flows above and below
+# the visual centre line.
+smooth_y = (
+    smooth_pm25 - np.nanmean(hourly_normalized)
+) * 1.35
 
-Z = (
-    radius
-    * np.sin(V)
-)
-
-
-# Add a flowing deformation
-
-X += 0.28 * np.sin(V * 3 + U)
-Y += 0.22 * np.cos(U * 2 - V)
-Z += 0.30 * np.sin(U * 2 + V * 2)
+# Add only a very small wave for visual continuity.
+# The measured PM2.5 remains the dominant displacement.
+smooth_y += 0.07 * np.sin(smooth_x * 0.9)
 
 
 # --------------------------------------------------
-# 7. PARTICLE COLOUR
+# 5. COLOUR SYSTEM
 # --------------------------------------------------
-
-colour = (
-    0.45
-    + 0.30 * np.sin(U * 1.3)
-    + 0.20 * np.cos(V * 1.8)
-    + 0.18 * Z
-)
-
-colour = (
-    colour - colour.min()
-) / (
-    colour.max() - colour.min()
-)
-
-
-# Custom palette inspired by the reference image
 
 particle_cmap = LinearSegmentedColormap.from_list(
-    "particle",
+    "pm25_glow",
     [
-        "#31105c",
-        "#602080",
-        "#9c2f73",
-        "#d74652",
-        "#ff7138",
-        "#ffad32",
+        "#5877ff",
+        "#7256e8",
+        "#b33eae",
+        "#ef416f",
+        "#ff6845",
+        "#ffc83d",
     ],
 )
 
 
 # --------------------------------------------------
-# 8. DRAW
+# 6. CANVAS
 # --------------------------------------------------
 
-fig = plt.figure(
-    figsize=(10, 10),
-    facecolor="#000000",
+fig, ax = plt.subplots(
+    figsize=(15, 7),
+    facecolor="#08090f",
 )
 
-ax = fig.add_subplot(
-    111,
-    projection="3d",
+ax.set_facecolor("#08090f")
+
+ax.set_xlim(
+    -0.8,
+    len(times) - 0.2,
 )
 
-ax.set_facecolor("#000000")
-
-
-particles = ax.scatter(
-    X.flatten(),
-    Y.flatten(),
-    Z.flatten(),
-    c=colour.flatten(),
-    cmap=particle_cmap,
-    s=3.6,
-    alpha=0.96,
-    linewidths=0,
-    depthshade=False,
+ax.set_ylim(
+    -2.15,
+    2.15,
 )
+
+ax.axis("off")
 
 
 # --------------------------------------------------
-# 9. CAMERA
+# 7. SOFT DATA-DRIVEN GLOW
 # --------------------------------------------------
 
-ax.view_init(
-    elev=18,
-    azim=-48,
-)
+# Build the atmospheric glow from many translucent particles.
+# PM2.5 controls both the width and strength of the glow.
 
-ax.set_box_aspect(
-    (1, 1, 1)
-)
+rng = np.random.default_rng(42)
 
-ax.set_xlim(-3.6, 3.6)
-ax.set_ylim(-3.6, 3.6)
-ax.set_zlim(-3.6, 3.6)
+for x, y, value in zip(
+    smooth_x,
+    smooth_y,
+    smooth_pm25,
+):
 
-ax.set_axis_off()
+    colour = particle_cmap(value)
+
+    # Higher PM2.5 = broader atmospheric band.
+    spread = 0.18 + value * 0.38
+
+    # Higher PM2.5 = more visible particles.
+    particle_count = int(
+    5 + value * 9
+    )
+
+    px = x + rng.normal(
+        0,
+        0.10,
+        particle_count,
+    )
+
+    py = y + rng.normal(
+        0,
+        spread,
+        particle_count,
+    )
+
+    # Particles nearer the curve are brighter.
+    distance = np.abs(py - y)
+
+    alpha = np.clip(
+        0.055
+        * (1.0 - distance / (spread * 3.0))
+        * (0.55 + value),
+        0.008,
+        0.075,
+    )
+
+    sizes = rng.uniform(
+    3,
+    15,
+    particle_count,
+    )
+
+    ax.scatter(
+        px,
+        py,
+        s=sizes,
+        color=[colour],
+        alpha=float(np.mean(alpha)),
+        linewidths=0,
+    )
 
 
-# Make the artwork occupy most of the image
+# --------------------------------------------------
+# 8. LARGE BLURRED-LIKE GLOW LAYERS
+# --------------------------------------------------
 
-ax.set_position(
-    [0.06, 0.08, 0.88, 0.82]
+# Layer translucent dots underneath the curve to create
+# the soft luminous cloud seen in the visual reference.
+
+for size, alpha in [
+    (2200, 0.008),
+    (1300, 0.012),
+    (700, 0.018),
+    (320, 0.026),
+    (120, 0.035),
+]:
+
+    sample_indices = np.arange(
+        0,
+        len(smooth_x),
+        4,
+    )
+
+    ax.scatter(
+        smooth_x[sample_indices],
+        smooth_y[sample_indices],
+        c=smooth_pm25[sample_indices],
+        cmap=particle_cmap,
+        s=size,
+        alpha=alpha,
+        linewidths=0,
+        vmin=0,
+        vmax=1,
+    )
+
+
+# --------------------------------------------------
+# 9. CENTRAL DATA CURVE
+# --------------------------------------------------
+
+# Thin dotted curve keeps the actual temporal structure visible.
+
+ax.plot(
+    smooth_x,
+    smooth_y,
+    color="#f2f2f2",
+    linewidth=0.9,
+    alpha=0.62,
+    linestyle=(0, (1.5, 3.0)),
+    zorder=8,
 )
 
 
 # --------------------------------------------------
-# 10. TYPOGRAPHY
+# 10. SELECT SIX HOURS AS VISIBLE NODES
+# --------------------------------------------------
+
+node_indices = np.linspace(
+    0,
+    len(times) - 1,
+    6,
+    dtype=int,
+)
+
+node_x = node_indices
+
+node_y = (
+    hourly_normalized[node_indices]
+    - np.nanmean(hourly_normalized)
+) * 1.35
+
+node_y += (
+    0.07
+    * np.sin(node_x * 0.9)
+)
+
+
+# White measurement nodes
+ax.scatter(
+    node_x,
+    node_y,
+    s=34,
+    facecolor="white",
+    edgecolor="#08090f",
+    linewidth=1.2,
+    zorder=12,
+)
+
+
+# --------------------------------------------------
+# 11. NODE LABELS
+# --------------------------------------------------
+
+for number, index in enumerate(node_indices):
+
+    time_label = times[index].strftime("%H:%M")
+
+    value = hourly_pm25[index]
+
+    # Alternate labels above and below the curve.
+    if number % 2 == 0:
+        offset = 0.34
+        va = "bottom"
+    else:
+        offset = -0.34
+        va = "top"
+
+    ax.text(
+        index,
+        node_y[number] + offset,
+        time_label,
+        color="#f4f4f4",
+        fontsize=10,
+        ha="center",
+        va=va,
+        weight="medium",
+        zorder=13,
+    )
+
+    ax.text(
+        index,
+        node_y[number] + (
+            offset + 0.17
+            if offset > 0
+            else offset - 0.17
+        ),
+        f"{value:.1f} µg/m³",
+        color="#92939b",
+        fontsize=7.5,
+        ha="center",
+        va=va,
+        zorder=13,
+    )
+
+
+# --------------------------------------------------
+# 12. TITLE
 # --------------------------------------------------
 
 fig.text(
-    0.07,
-    0.94,
+    0.075,
+    0.90,
     "HONG KONG PM2.5",
     color="white",
-    fontsize=24,
+    fontsize=25,
     weight="bold",
 )
 
 fig.text(
-    0.07,
-    0.905,
-    "PAST 24 HOURS · PARTICLE FIELD",
-    color="#999999",
+    0.075,
+    0.855,
+    "24 HOURS OF INVISIBLE AIR POLLUTION",
+    color="#a0a1a8",
     fontsize=10,
 )
 
-
 fig.text(
-    0.07,
-    0.060,
-    "18 monitoring stations  ·  24 hours",
-    color="#999999",
-    fontsize=9,
+    0.075,
+    0.818,
+    "Hourly median across Hong Kong air-quality monitoring stations",
+    color="#666872",
+    fontsize=8,
 )
 
+
+# --------------------------------------------------
+# 13. LEGEND / EXPLANATION
+# --------------------------------------------------
+
 fig.text(
-    0.07,
-    0.038,
-    "Particle displacement is influenced by measured PM2.5 concentration",
-    color="#777777",
+    0.075,
+    0.105,
+    "LOWER PM2.5",
+    color="#7d86b9",
     fontsize=8,
 )
 
 fig.text(
-    0.07,
-    0.018,
+    0.172,
+    0.105,
+    "●",
+    color="#7256e8",
+    fontsize=10,
+)
+
+fig.text(
+    0.192,
+    0.105,
+    "→",
+    color="#666666",
+    fontsize=9,
+)
+
+fig.text(
+    0.217,
+    0.105,
+    "●",
+    color="#ef416f",
+    fontsize=10,
+)
+
+fig.text(
+    0.237,
+    0.105,
+    "→",
+    color="#666666",
+    fontsize=9,
+)
+
+fig.text(
+    0.262,
+    0.105,
+    "●",
+    color="#ffc83d",
+    fontsize=10,
+)
+
+fig.text(
+    0.285,
+    0.105,
+    "HIGHER PM2.5",
+    color="#a39b7a",
+    fontsize=8,
+)
+
+
+fig.text(
+    0.075,
+    0.068,
+    "Curve = hourly median  ·  Glow width + colour = PM2.5 concentration (µg/m³)",
+    color="#777982",
+    fontsize=8,
+)
+
+fig.text(
+    0.075,
+    0.038,
+    f"{len(stations)} monitoring stations  ·  {len(times)} hours  ·  "
+    "Missing station measurements are not estimated",
+    color="#5f6068",
+    fontsize=7.5,
+)
+
+fig.text(
+    0.075,
+    0.016,
     "Source: Hong Kong Environmental Protection Department",
-    color="#555555",
+    color="#4e4f56",
     fontsize=7,
 )
 
 
 # --------------------------------------------------
-# 11. SAVE
+# 14. SAVE
 # --------------------------------------------------
 
 OUT.parent.mkdir(
@@ -354,12 +531,19 @@ OUT.parent.mkdir(
     exist_ok=True,
 )
 
+plt.subplots_adjust(
+    left=0.07,
+    right=0.97,
+    top=0.78,
+    bottom=0.18,
+)
+
 plt.savefig(
     OUT,
     dpi=240,
-    facecolor="#000000",
+    facecolor="#08090f",
     bbox_inches="tight",
-    pad_inches=0.08,
+    pad_inches=0.10,
 )
 
 plt.close()
