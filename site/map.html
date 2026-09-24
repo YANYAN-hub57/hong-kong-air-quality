@@ -1,0 +1,2225 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>Hong Kong PM2.5 — Spatial Distribution</title>
+
+  <link
+    href="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css"
+    rel="stylesheet"
+  >
+
+  <script
+    src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js">
+  </script>
+
+
+  <style>
+
+    /* ==================================================
+       01 — BASE
+    ================================================== */
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+
+      margin: 0;
+
+      background: #07080d;
+      color: white;
+
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+    }
+
+
+    /* Dark atmospheric overlay */
+
+    .map-vignette {
+      position: absolute;
+      inset: 0;
+
+      pointer-events: none;
+
+      z-index: 2;
+
+      background:
+        radial-gradient(
+          circle at 52% 44%,
+          transparent 20%,
+          rgba(4, 5, 10, 0.06) 55%,
+          rgba(4, 5, 10, 0.38) 100%
+        );
+    }
+
+
+    /* ==================================================
+       02 — HEADER
+    ================================================== */
+
+    .header {
+      position: absolute;
+
+      top: 30px;
+      left: 36px;
+
+      z-index: 20;
+
+      pointer-events: none;
+    }
+
+    .header h1 {
+      margin: 0;
+
+      font-size: 28px;
+
+      line-height: 1;
+
+      font-weight: 760;
+
+      letter-spacing: 0.015em;
+    }
+
+    .eyebrow {
+      margin-top: 10px;
+
+      color: #9699a5;
+
+      font-size: 10px;
+
+      font-weight: 500;
+
+      letter-spacing: 0.11em;
+    }
+
+    .description {
+      margin-top: 8px;
+
+      color: #5f626d;
+
+      font-size: 9px;
+
+      letter-spacing: 0.02em;
+    }
+
+
+    /* ==================================================
+       03 — STATION CARD
+    ================================================== */
+
+    .station-card {
+      position: absolute;
+
+      top: 28px;
+      right: 36px;
+
+      width: 230px;
+
+      padding:
+        17px 18px 16px;
+
+      z-index: 20;
+
+      background:
+        rgba(7, 8, 14, 0.88);
+
+      border:
+        1px solid rgba(255,255,255,0.09);
+
+      border-radius: 12px;
+
+      backdrop-filter:
+        blur(18px);
+
+      box-shadow:
+        0 10px 40px
+        rgba(0,0,0,0.25);
+    }
+
+    .station-type {
+      color: #777b88;
+
+      font-size: 8px;
+
+      font-weight: 600;
+
+      letter-spacing: 0.11em;
+
+      text-transform: uppercase;
+    }
+
+    .station-name {
+      margin-top: 7px;
+
+      font-size: 18px;
+
+      font-weight: 650;
+
+      letter-spacing: -0.01em;
+    }
+
+    .value-row {
+      display: flex;
+
+      align-items: baseline;
+
+      gap: 5px;
+
+      margin-top: 12px;
+    }
+
+    .station-value {
+      font-size: 32px;
+
+      line-height: 1;
+
+      font-weight: 700;
+    }
+
+    .station-unit {
+      color: #858894;
+
+      font-size: 10px;
+    }
+
+    .station-time {
+      margin-top: 7px;
+
+      color: #747782;
+
+      font-size: 10px;
+    }
+
+    .station-hint {
+      margin-top: 12px;
+
+      padding-top: 10px;
+
+      border-top:
+        1px solid rgba(255,255,255,0.06);
+
+      color: #555965;
+
+      font-size: 8px;
+    }
+
+
+    /* ==================================================
+       04 — BOTTOM CONTROL PANEL
+    ================================================== */
+
+    .controls {
+      position: absolute;
+
+      left: 36px;
+      right: 36px;
+      bottom: 22px;
+
+      z-index: 20;
+
+      padding:
+        11px 18px 10px;
+
+      background:
+        rgba(7, 8, 14, 0.90);
+
+      border:
+        1px solid rgba(255,255,255,0.08);
+
+      border-radius: 12px;
+
+      backdrop-filter:
+        blur(20px);
+
+      box-shadow:
+        0 12px 45px
+        rgba(0,0,0,0.25);
+    }
+
+    .control-top {
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      gap: 20px;
+    }
+
+    .time-group {
+      display: flex;
+
+      align-items: center;
+
+      gap: 11px;
+    }
+
+    #current-time {
+      min-width: 52px;
+
+      font-size: 17px;
+
+      font-weight: 650;
+    }
+
+    .station-count {
+      color: #6d707b;
+
+      font-size: 8px;
+
+      letter-spacing: 0.09em;
+    }
+
+
+    /* ==================================================
+       05 — PLAY BUTTON
+    ================================================== */
+
+    #play-button {
+      width: 29px;
+      height: 29px;
+
+      padding: 0;
+
+      display: flex;
+
+      align-items: center;
+      justify-content: center;
+
+      border:
+        1px solid rgba(255,255,255,0.17);
+
+      border-radius: 50%;
+
+      background:
+        rgba(255,255,255,0.055);
+
+      color: white;
+
+      font-size: 9px;
+
+      cursor: pointer;
+
+      transition:
+        background 160ms ease,
+        border 160ms ease,
+        transform 160ms ease;
+    }
+
+    #play-button:hover {
+      background:
+        rgba(255,255,255,0.13);
+
+      border-color:
+        rgba(255,255,255,0.28);
+    }
+
+    #play-button:active {
+      transform:
+        scale(0.94);
+    }
+
+
+    /* ==================================================
+       06 — SLIDER
+    ================================================== */
+
+    #time-slider {
+      width: 100%;
+
+      height: 14px;
+
+      margin:
+        5px 0 0;
+
+      appearance: none;
+
+      background:
+        transparent;
+
+      cursor: pointer;
+    }
+
+    #time-slider::-webkit-slider-runnable-track {
+      height: 2px;
+
+      border-radius: 999px;
+
+      background:
+        rgba(255,255,255,0.24);
+    }
+
+    #time-slider::-webkit-slider-thumb {
+      appearance: none;
+
+      width: 12px;
+      height: 12px;
+
+      margin-top: -5px;
+
+      border: 0;
+
+      border-radius: 50%;
+
+      background: white;
+
+      box-shadow:
+        0 0 10px
+        rgba(255,255,255,0.28);
+    }
+
+    #time-slider::-moz-range-track {
+      height: 2px;
+
+      border-radius: 999px;
+
+      background:
+        rgba(255,255,255,0.24);
+    }
+
+    #time-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+
+      border: 0;
+
+      border-radius: 50%;
+
+      background: white;
+    }
+
+    .timeline-labels {
+      display: flex;
+
+      justify-content: space-between;
+
+      margin-top: 0;
+
+      color: #565a65;
+
+      font-size: 7px;
+    }
+
+
+    /* ==================================================
+       07 — LEGEND
+    ================================================== */
+
+    .legend-row {
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      margin-top: 6px;
+    }
+
+    .legend {
+      display: flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      color: #686c77;
+
+      font-size: 7px;
+    }
+
+    .gradient {
+      width: 145px;
+      height: 3px;
+
+      border-radius: 999px;
+
+      background:
+        linear-gradient(
+          90deg,
+          #5877ff,
+          #7256e8,
+          #b33eae,
+          #ef416f,
+          #ff6845,
+          #ffc83d
+        );
+    }
+
+    .scale-note {
+      color: #51545e;
+
+      font-size: 7px;
+
+      letter-spacing: 0.04em;
+    }
+
+
+    /* ==================================================
+       08 — MAP MARKERS
+    ================================================== */
+
+    .pm-marker {
+      position: relative;
+
+      width: 18px;
+      height: 18px;
+
+      cursor: pointer;
+
+      transform-origin:
+        bottom center;
+
+      transition:
+        transform 180ms ease,
+        filter 180ms ease;
+    }
+
+    .pm-marker:hover {
+      transform:
+        scale(1.10);
+
+      filter:
+        brightness(1.18);
+    }
+
+
+    /* Vertical PM2.5 column */
+
+    .pm-glow {
+      position: absolute;
+
+      left: 50%;
+      bottom: 0;
+
+      width: 13px;
+
+      transform:
+        translateX(-50%);
+
+      border-radius:
+        3px 3px 2px 2px;
+
+      background:
+        linear-gradient(
+          90deg,
+          rgba(0,0,0,0.32) 0%,
+          currentColor 22%,
+          currentColor 68%,
+          rgba(255,255,255,0.56) 100%
+        );
+
+      border-top:
+        1px solid rgba(255,255,255,0.55);
+
+      box-shadow:
+        0 0 8px currentColor,
+        0 0 18px currentColor,
+        0 0 34px rgba(255,255,255,0.05);
+
+      opacity: 0.90;
+
+      transition:
+        height 420ms cubic-bezier(.2,.8,.2,1),
+        color 420ms ease,
+        opacity 180ms ease,
+        box-shadow 180ms ease;
+    }
+
+
+    /* Cylinder top */
+
+    .pm-glow::before {
+      content: "";
+
+      position: absolute;
+
+      top: -2.5px;
+      left: 1px;
+
+      width: 11px;
+      height: 5px;
+
+      border-radius: 50%;
+
+      background:
+        currentColor;
+
+      filter:
+        brightness(1.22);
+    }
+
+
+    /* Thin highlight */
+
+    .pm-glow::after {
+      content: "";
+
+      position: absolute;
+
+      top: 5px;
+      right: 1.5px;
+
+      width: 1.5px;
+
+      height:
+        calc(100% - 9px);
+
+      border-radius: 999px;
+
+      background:
+        rgba(255,255,255,0.28);
+    }
+
+
+    /* Geographic anchor */
+
+    .pm-dot {
+      position: absolute;
+
+      left: 50%;
+      bottom: -4px;
+
+      width: 6px;
+      height: 6px;
+
+      transform:
+        translateX(-50%);
+
+      border-radius: 50%;
+
+      background: white;
+
+      border:
+        1px solid rgba(0,0,0,0.85);
+
+      box-shadow:
+        0 0 5px
+        rgba(255,255,255,0.55);
+
+      transition:
+        transform 180ms ease,
+        box-shadow 180ms ease;
+    }
+
+
+    /* Selected station */
+
+    .pm-marker.selected {
+      z-index: 999;
+    }
+
+    .pm-marker.selected .pm-glow {
+      opacity: 1;
+
+      box-shadow:
+        0 0 10px currentColor,
+        0 0 25px currentColor,
+        0 0 48px currentColor;
+    }
+
+    .pm-marker.selected .pm-dot {
+      transform:
+        translateX(-50%)
+        scale(1.55);
+
+      box-shadow:
+        0 0 10px white;
+    }
+
+
+    /* ==================================================
+       09 — HOVER LABEL
+    ================================================== */
+
+    .hover-label {
+      position: absolute;
+
+      left: 50%;
+      bottom: 14px;
+
+      transform:
+        translateX(-50%)
+        translateY(-3px);
+
+      padding:
+        5px 7px;
+
+      white-space: nowrap;
+
+      pointer-events: none;
+
+      opacity: 0;
+
+      background:
+        rgba(6, 7, 12, 0.92);
+
+      border:
+        1px solid rgba(255,255,255,0.10);
+
+      border-radius: 5px;
+
+      color: #e8e9ed;
+
+      font-size: 8px;
+
+      font-weight: 550;
+
+      transition:
+        opacity 140ms ease,
+        transform 140ms ease;
+    }
+
+    .pm-marker:hover .hover-label {
+      opacity: 1;
+
+      transform:
+        translateX(-50%)
+        translateY(-7px);
+    }
+
+
+    /* ==================================================
+       10 — MAPLIBRE
+    ================================================== */
+
+    .maplibregl-ctrl-group {
+      background:
+        rgba(8,9,15,0.88) !important;
+
+      border:
+        1px solid rgba(255,255,255,0.10);
+
+      box-shadow: none !important;
+    }
+
+    .maplibregl-ctrl-group button {
+      filter:
+        invert(1);
+
+      opacity: 0.68;
+    }
+
+    .maplibregl-ctrl-attrib {
+      background:
+        rgba(0,0,0,0.45) !important;
+
+      color:
+        rgba(255,255,255,0.35) !important;
+
+      font-size: 8px;
+    }
+
+
+    /* ==================================================
+       11 — RESPONSIVE
+    ================================================== */
+
+    @media (max-width: 700px) {
+
+      .header {
+        top: 20px;
+        left: 20px;
+      }
+
+      .header h1 {
+        font-size: 22px;
+      }
+
+      .description {
+        display: none;
+      }
+
+      .station-card {
+        top: 102px;
+        left: 20px;
+        right: auto;
+
+        width: 185px;
+      }
+
+      .controls {
+        left: 20px;
+        right: 20px;
+        bottom: 17px;
+      }
+
+      .station-count,
+      .scale-note {
+        display: none;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+  <!-- MAP -->
+
+  <div id="map"></div>
+
+  <div class="map-vignette"></div>
+
+
+  <!-- HEADER -->
+
+  <header class="header">
+
+    <h1>
+      HONG KONG PM2.5
+    </h1>
+
+    <div class="eyebrow">
+      SPATIAL DISTRIBUTION · PAST 24 HOURS
+    </div>
+
+    <div class="description">
+      Column height + colour = measured PM2.5 concentration
+    </div>
+
+  </header>
+
+
+  <!-- STATION INFORMATION -->
+
+  <aside class="station-card">
+
+    <div
+      class="station-type"
+      id="station-type">
+      SELECT A STATION
+    </div>
+
+    <div
+      class="station-name"
+      id="station-name">
+      Hong Kong
+    </div>
+
+    <div class="value-row">
+
+      <span
+        class="station-value"
+        id="station-value">
+        —
+      </span>
+
+      <span class="station-unit">
+        µg/m³
+      </span>
+
+    </div>
+
+    <div
+      class="station-time"
+      id="station-time">
+      Click a station column
+    </div>
+
+    <div class="station-hint">
+      Hover to identify · Click to inspect
+    </div>
+
+  </aside>
+
+
+  <!-- TIMELINE -->
+
+  <section class="controls">
+
+    <div class="control-top">
+
+      <div class="time-group">
+
+        <button
+          id="play-button"
+          type="button"
+          aria-label="Play animation">
+          ▶
+        </button>
+
+        <div id="current-time">
+          —
+        </div>
+
+      </div>
+
+
+      <div class="station-count">
+        18 OFFICIAL MONITORING STATIONS
+      </div>
+
+    </div>
+
+
+    <input
+      id="time-slider"
+      type="range"
+      min="0"
+      max="23"
+      step="1"
+      value="0"
+      aria-label="Select hour"
+    >
+
+
+    <div class="timeline-labels">
+
+      <span id="first-time">
+        —
+      </span>
+
+      <span id="last-time">
+        —
+      </span>
+
+    </div>
+
+
+    <div class="legend-row">
+
+      <div class="legend">
+
+        <span>
+          LOWER PM2.5
+        </span>
+
+        <div class="gradient"></div>
+
+        <span>
+          HIGHER PM2.5
+        </span>
+
+      </div>
+
+
+      <div
+        class="scale-note"
+        id="scale-note">
+        24H FIXED SCALE
+      </div>
+
+    </div>
+
+  </section>
+
+
+
+  <script>
+
+    /* ==================================================
+       01 — GLOBAL STATE
+    ================================================== */
+
+    const DATA_URL =
+      "./pm25-map-data.json";
+
+
+    let dataset = null;
+
+    let markers = [];
+
+    let selectedStation = null;
+
+    let currentIndex = 0;
+
+    let globalMin = 0;
+
+    let globalMax = 1;
+
+    let animationTimer = null;
+
+    let isPlaying = false;
+
+
+
+    /* ==================================================
+       02 — COLOUR SCALE
+    ================================================== */
+
+    function interpolateColour(
+      value,
+      min,
+      max
+    ) {
+
+      const colours = [
+
+        [88, 119, 255],
+
+        [114, 86, 232],
+
+        [179, 62, 174],
+
+        [239, 65, 111],
+
+        [255, 104, 69],
+
+        [255, 200, 61]
+
+      ];
+
+
+      let t =
+        (value - min)
+        /
+        (max - min || 1);
+
+
+      t =
+        Math.max(
+          0,
+          Math.min(1, t)
+        );
+
+
+      const scaled =
+        t * (colours.length - 1);
+
+
+      const index =
+        Math.floor(scaled);
+
+
+      const next =
+        Math.min(
+          index + 1,
+          colours.length - 1
+        );
+
+
+      const fraction =
+        scaled - index;
+
+
+      const a =
+        colours[index];
+
+
+      const b =
+        colours[next];
+
+
+      const rgb =
+        a.map(
+          (channel, i) =>
+            Math.round(
+              channel
+              +
+              (b[i] - channel)
+              *
+              fraction
+            )
+        );
+
+
+      return (
+        `rgb(${rgb.join(",")})`
+      );
+
+    }
+
+
+
+    /* ==================================================
+       03 — MAP
+    ================================================== */
+
+    const map =
+      new maplibregl.Map({
+
+        container:
+          "map",
+
+        style:
+          "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+
+        center: [
+          114.155,
+          22.335
+        ],
+
+        zoom:
+          9.55,
+
+        pitch:
+          52,
+
+        bearing:
+          -16,
+
+        attributionControl:
+          true
+
+      });
+
+
+    map.addControl(
+      new maplibregl.NavigationControl({
+        visualizePitch: true
+      }),
+      "bottom-right"
+    );
+
+
+
+    /* ==================================================
+       04 — REDUCE BASEMAP VISUAL NOISE
+    ================================================== */
+
+    map.on(
+      "load",
+      () => {
+
+        /*
+          CARTO styles can change their exact layer IDs,
+          so we inspect layer types instead of relying on
+          one hard-coded layer name.
+
+          Minor place labels are faded rather than
+          removing geographic context completely.
+        */
+
+        const layers =
+          map.getStyle().layers || [];
+
+
+        layers.forEach(
+          layer => {
+
+            if (
+              layer.type === "symbol"
+            ) {
+
+              const id =
+                layer.id.toLowerCase();
+
+
+              /*
+                Reduce minor place / POI / road labels.
+              */
+
+              if (
+                id.includes("poi")
+                ||
+                id.includes("road")
+                ||
+                id.includes("place")
+              ) {
+
+                try {
+
+                  map.setPaintProperty(
+                    layer.id,
+                    "text-opacity",
+                    0.22
+                  );
+
+                }
+
+                catch (error) {
+
+                  /*
+                    Some symbol layers may not
+                    contain text-opacity.
+                  */
+
+                }
+
+              }
+
+
+              /*
+                Keep major labels slightly stronger.
+              */
+
+              if (
+                id.includes("city")
+                ||
+                id.includes("country")
+              ) {
+
+                try {
+
+                  map.setPaintProperty(
+                    layer.id,
+                    "text-opacity",
+                    0.50
+                  );
+
+                }
+
+                catch (error) {}
+
+              }
+
+            }
+
+
+            /*
+              Fade roads so PM2.5 columns dominate.
+            */
+
+            if (
+              layer.type === "line"
+            ) {
+
+              const id =
+                layer.id.toLowerCase();
+
+
+              if (
+                id.includes("road")
+                ||
+                id.includes("transport")
+              ) {
+
+                try {
+
+                  map.setPaintProperty(
+                    layer.id,
+                    "line-opacity",
+                    0.30
+                  );
+
+                }
+
+                catch (error) {}
+
+              }
+
+            }
+
+          }
+        );
+
+      }
+    );
+
+
+
+    /* ==================================================
+       05 — LOAD LOCAL DATA
+    ================================================== */
+
+    fetch(DATA_URL)
+
+      .then(
+        response => {
+
+          if (!response.ok) {
+
+            throw new Error(
+              "Could not load PM2.5 map data."
+            );
+
+          }
+
+          return response.json();
+
+        }
+      )
+
+      .then(
+        data => {
+
+          dataset =
+            data;
+
+          initialiseVisualization();
+
+        }
+      )
+
+      .catch(
+        error => {
+
+          console.error(error);
+
+          document
+            .getElementById(
+              "current-time"
+            )
+            .textContent =
+              "DATA ERROR";
+
+        }
+      );
+
+
+
+    /* ==================================================
+       06 — INITIALISE
+    ================================================== */
+
+    function initialiseVisualization() {
+
+
+      const allValues =
+        dataset.records
+
+          .map(
+            record =>
+              record.pm25
+          )
+
+          .filter(
+            value =>
+              Number.isFinite(value)
+          );
+
+
+      globalMin =
+        Math.min(
+          ...allValues
+        );
+
+
+      globalMax =
+        Math.max(
+          ...allValues
+        );
+
+
+      document
+        .getElementById(
+          "scale-note"
+        )
+        .textContent =
+          `${globalMin.toFixed(1)}–${globalMax.toFixed(1)} µg/m³ · 24H FIXED SCALE`;
+
+
+      const slider =
+        document
+          .getElementById(
+            "time-slider"
+          );
+
+
+      slider.max =
+        dataset.times.length - 1;
+
+
+      document
+        .getElementById(
+          "first-time"
+        )
+        .textContent =
+          formatTime(
+            dataset.times[0]
+          );
+
+
+      document
+        .getElementById(
+          "last-time"
+        )
+        .textContent =
+          formatTime(
+            dataset.times[
+              dataset.times.length - 1
+            ]
+          );
+
+
+      createMarkers();
+
+
+      /*
+        Start with first AQHI hour.
+      */
+
+      currentIndex =
+        0;
+
+
+      slider.value =
+        currentIndex;
+
+
+      updateTime(
+        currentIndex
+      );
+
+
+      slider.addEventListener(
+        "input",
+        event => {
+
+          if (
+            isPlaying
+          ) {
+
+            stopAnimation();
+
+          }
+
+
+          currentIndex =
+            Number(
+              event.target.value
+            );
+
+
+          updateTime(
+            currentIndex
+          );
+
+        }
+      );
+
+    }
+
+
+
+    /* ==================================================
+       07 — CREATE STATION COLUMNS
+    ================================================== */
+
+    function createMarkers() {
+
+
+      const stationNames =
+        [
+          ...new Set(
+            dataset.records.map(
+              record =>
+                record.station
+            )
+          )
+        ];
+
+
+      stationNames.forEach(
+        stationName => {
+
+
+          const firstRecord =
+            dataset.records.find(
+              record =>
+                record.station
+                ===
+                stationName
+            );
+
+
+          const element =
+            document.createElement(
+              "div"
+            );
+
+
+          element.className =
+            "pm-marker";
+
+
+          const glow =
+            document.createElement(
+              "div"
+            );
+
+
+          glow.className =
+            "pm-glow";
+
+
+          const dot =
+            document.createElement(
+              "div"
+            );
+
+
+          dot.className =
+            "pm-dot";
+
+
+          const hoverLabel =
+            document.createElement(
+              "div"
+            );
+
+
+          hoverLabel.className =
+            "hover-label";
+
+
+          hoverLabel.textContent =
+            stationName;
+
+
+          element.appendChild(
+            glow
+          );
+
+
+          element.appendChild(
+            dot
+          );
+
+
+          element.appendChild(
+            hoverLabel
+          );
+
+
+          /*
+            Click = lock station selection.
+          */
+
+          element.addEventListener(
+            "click",
+            event => {
+
+              event.stopPropagation();
+
+
+              selectedStation =
+                stationName;
+
+
+              updateSelectedMarker();
+
+
+              updateStationCard(
+                stationName,
+                currentIndex
+              );
+
+            }
+          );
+
+
+          const marker =
+            new maplibregl.Marker({
+
+              element:
+                element,
+
+              anchor:
+                "bottom"
+
+            })
+
+              .setLngLat([
+                firstRecord.longitude,
+                firstRecord.latitude
+              ])
+
+              .addTo(
+                map
+              );
+
+
+          markers.push({
+
+            station:
+              stationName,
+
+            marker:
+              marker,
+
+            element:
+              element,
+
+            glow:
+              glow
+
+          });
+
+
+        }
+      );
+
+    }
+
+
+
+    /* ==================================================
+       08 — UPDATE SELECTED MARKER
+    ================================================== */
+
+    function updateSelectedMarker() {
+
+
+      markers.forEach(
+        markerInfo => {
+
+
+          if (
+            markerInfo.station
+            ===
+            selectedStation
+          ) {
+
+            markerInfo
+              .element
+              .classList
+              .add(
+                "selected"
+              );
+
+          }
+
+          else {
+
+            markerInfo
+              .element
+              .classList
+              .remove(
+                "selected"
+              );
+
+          }
+
+        }
+      );
+
+    }
+
+
+
+    /* ==================================================
+       09 — UPDATE HOUR
+    ================================================== */
+
+    function updateTime(
+      index
+    ) {
+
+
+      currentIndex =
+        index;
+
+
+      const time =
+        dataset.times[
+          index
+        ];
+
+
+      const records =
+        dataset.records.filter(
+          record =>
+            record.time
+            ===
+            time
+        );
+
+
+      document
+        .getElementById(
+          "current-time"
+        )
+        .textContent =
+          formatTime(
+            time
+          );
+
+
+      markers.forEach(
+        markerInfo => {
+
+
+          const record =
+            records.find(
+              item =>
+                item.station
+                ===
+                markerInfo.station
+            );
+
+
+          if (
+            !record
+            ||
+            !Number.isFinite(
+              record.pm25
+            )
+          ) {
+
+            markerInfo
+              .glow
+              .style
+              .height =
+                "5px";
+
+
+            markerInfo
+              .glow
+              .style
+              .color =
+                "#484b54";
+
+
+            markerInfo
+              .glow
+              .style
+              .opacity =
+                "0.45";
+
+
+            return;
+
+          }
+
+
+          /*
+            FIXED 24-HOUR SCALE.
+
+            Same PM2.5 value =
+            same height and colour
+            at every hour.
+          */
+
+          const normalized =
+            (
+              record.pm25
+              -
+              globalMin
+            )
+            /
+            (
+              globalMax
+              -
+              globalMin
+              ||
+              1
+            );
+
+
+          /*
+            Slight perceptual curve.
+
+            Preserves ordering but prevents
+            low readings becoming invisible.
+          */
+
+          const height =
+            14
+            +
+            Math.pow(
+              normalized,
+              0.84
+            )
+            *
+            132;
+
+
+          const colour =
+            interpolateColour(
+
+              record.pm25,
+
+              globalMin,
+
+              globalMax
+
+            );
+
+
+          markerInfo
+            .glow
+            .style
+            .height =
+              `${height}px`;
+
+
+          markerInfo
+            .glow
+            .style
+            .color =
+              colour;
+
+
+          markerInfo
+            .glow
+            .style
+            .opacity =
+              "0.90";
+
+        }
+      );
+
+
+      /*
+        Keep station card synchronised
+        with animation / slider.
+      */
+
+      if (
+        selectedStation
+      ) {
+
+        updateStationCard(
+
+          selectedStation,
+
+          index
+
+        );
+
+      }
+
+    }
+
+
+
+    /* ==================================================
+       10 — STATION CARD
+    ================================================== */
+
+    function updateStationCard(
+      stationName,
+      index
+    ) {
+
+
+      const time =
+        dataset.times[
+          index
+        ];
+
+
+      const record =
+        dataset.records.find(
+
+          item =>
+
+            item.station
+            ===
+            stationName
+
+            &&
+
+            item.time
+            ===
+            time
+
+        );
+
+
+      if (!record) {
+        return;
+      }
+
+
+      document
+        .getElementById(
+          "station-name"
+        )
+        .textContent =
+          record.station;
+
+
+      document
+        .getElementById(
+          "station-type"
+        )
+        .textContent =
+          formatStationType(
+            record.type
+          );
+
+
+      document
+        .getElementById(
+          "station-value"
+        )
+        .textContent =
+
+          Number.isFinite(
+            record.pm25
+          )
+
+          ?
+
+          record.pm25.toFixed(1)
+
+          :
+
+          "—";
+
+
+      document
+        .getElementById(
+          "station-time"
+        )
+        .textContent =
+          formatTime(
+            record.time
+          );
+
+    }
+
+
+
+    /* ==================================================
+       11 — STATION TYPE FORMAT
+    ================================================== */
+
+    function formatStationType(
+      value
+    ) {
+
+      if (!value) {
+        return "MONITORING STATION";
+      }
+
+
+      return value
+        .replace(
+          "AIR MONITORING STATION",
+          "MONITORING STATION"
+        )
+        .trim();
+
+    }
+
+
+
+    /* ==================================================
+       12 — HONG KONG TIME FORMAT
+    ================================================== */
+
+    function formatTime(
+      isoTime
+    ) {
+
+      /*
+        IMPORTANT:
+
+        The AQHI timestamp already contains
+        Hong Kong local time.
+
+        We extract HH:MM directly instead
+        of allowing the browser to convert
+        it into the computer's timezone.
+      */
+
+      const match =
+        isoTime.match(
+          /T(\d{2}:\d{2})/
+        );
+
+
+      if (match) {
+
+        return match[1];
+
+      }
+
+
+      return isoTime;
+
+    }
+
+
+
+    /* ==================================================
+       13 — PLAY / PAUSE
+    ================================================== */
+
+    const playButton =
+      document
+        .getElementById(
+          "play-button"
+        );
+
+
+    playButton.addEventListener(
+      "click",
+      () => {
+
+
+        if (
+          isPlaying
+        ) {
+
+          stopAnimation();
+
+        }
+
+        else {
+
+          startAnimation();
+
+        }
+
+      }
+    );
+
+
+
+    function startAnimation() {
+
+
+      if (
+        isPlaying
+      ) {
+
+        return;
+
+      }
+
+
+      isPlaying =
+        true;
+
+
+      playButton.textContent =
+        "❚❚";
+
+
+      playButton.setAttribute(
+        "aria-label",
+        "Pause animation"
+      );
+
+
+      animationTimer =
+        setInterval(
+          () => {
+
+
+            const slider =
+              document
+                .getElementById(
+                  "time-slider"
+                );
+
+
+            let next =
+              Number(
+                slider.value
+              )
+              +
+              1;
+
+
+            if (
+              next
+              >
+              Number(
+                slider.max
+              )
+            ) {
+
+              next =
+                0;
+
+            }
+
+
+            slider.value =
+              next;
+
+
+            currentIndex =
+              next;
+
+
+            updateTime(
+              next
+            );
+
+
+          },
+
+          900
+
+        );
+
+    }
+
+
+
+    function stopAnimation() {
+
+
+      isPlaying =
+        false;
+
+
+      playButton.textContent =
+        "▶";
+
+
+      playButton.setAttribute(
+        "aria-label",
+        "Play animation"
+      );
+
+
+      if (
+        animationTimer
+      ) {
+
+        clearInterval(
+          animationTimer
+        );
+
+      }
+
+
+      animationTimer =
+        null;
+
+    }
+
+
+
+    /* ==================================================
+       14 — KEYBOARD CONTROL
+    ================================================== */
+
+    document.addEventListener(
+      "keydown",
+      event => {
+
+
+        /*
+          Space = play / pause
+        */
+
+        if (
+          event.code
+          ===
+          "Space"
+        ) {
+
+          event.preventDefault();
+
+
+          if (
+            isPlaying
+          ) {
+
+            stopAnimation();
+
+          }
+
+          else {
+
+            startAnimation();
+
+          }
+
+        }
+
+
+        /*
+          Left / right arrows =
+          previous / next hour
+        */
+
+        if (
+          event.code
+          ===
+          "ArrowRight"
+        ) {
+
+          if (
+            isPlaying
+          ) {
+
+            stopAnimation();
+
+          }
+
+
+          currentIndex =
+            Math.min(
+              currentIndex + 1,
+              dataset.times.length - 1
+            );
+
+
+          document
+            .getElementById(
+              "time-slider"
+            )
+            .value =
+              currentIndex;
+
+
+          updateTime(
+            currentIndex
+          );
+
+        }
+
+
+        if (
+          event.code
+          ===
+          "ArrowLeft"
+        ) {
+
+          if (
+            isPlaying
+          ) {
+
+            stopAnimation();
+
+          }
+
+
+          currentIndex =
+            Math.max(
+              currentIndex - 1,
+              0
+            );
+
+
+          document
+            .getElementById(
+              "time-slider"
+            )
+            .value =
+              currentIndex;
+
+
+          updateTime(
+            currentIndex
+          );
+
+        }
+
+      }
+    );
+
+
+  </script>
+
+</body>
+</html>

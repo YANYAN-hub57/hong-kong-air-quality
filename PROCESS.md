@@ -64,14 +64,34 @@ The viewer can also select a particle to inspect its monitoring station, exact P
 
 Colour also acts as a second data encoding. Lower PM2.5 concentrations are shown toward purple, while higher concentrations move toward yellow.
 
+## Spatial map iteration
+
+After developing the particle field, I identified an important limitation: the abstract visualization showed temporal variation but deliberately removed the geographic locations of the monitoring stations.
+
+I therefore developed a second interactive view that asks a different question: where are the PM2.5 measurements occurring?
+
+I obtained the official Air Quality Monitoring Network geographic dataset from the Hong Kong Government Common Spatial Data Infrastructure (CSDI). I saved the station geography locally and checked the station names against the PM2.5 dataset. All 18 monitoring stations were successfully matched to official latitude and longitude coordinates.
+
+I then combined the committed PM2.5 measurements with these coordinates to create a browser-ready dataset for the spatial visualization.
+
+In the map, each monitoring station is anchored at its official geographic location. Column height and colour both encode PM2.5 concentration. I use one fixed scale calculated from the complete 24-hour dataset rather than recalculating the scale for every hour. This keeps the visual encoding comparable through time: the same concentration always produces the same height and colour.
+
+I initially found that the underlying map contained too many roads and place labels, which competed visually with the PM2.5 data. I reduced the visual prominence of the basemap and refined the columns so that the measured data remains the main visual layer while geographic context is still visible.
+
+I also added a 24-hour timeline, Play/Pause control, station hover labels, and a selectable information panel. These interactions allow the viewer to move between overview and exact measurement without changing the underlying data.
+
 ## Final decision
 
-I kept both the heatmap and particle field because they serve different purposes.
+The final project uses three complementary representations rather than forcing one visualization to answer every question.
 
-The heatmap provides a direct overview of the original station-by-time structure and makes comparisons relatively easy.
+The heatmap is the reference view. It exposes the original station-by-time structure and allows direct comparison of measurements.
 
-The particle field is more experimental. It sacrifices some immediate numerical readability in order to explore how environmental measurements can generate form, colour, movement, and interaction.
+The particle field explores the temporal and expressive qualities of the dataset. It asks how invisible environmental measurements can generate form, colour, movement, and interaction.
 
-The interactive information panel reconnects this abstract form to the original data by allowing individual measurements to be inspected.
+The spatial map restores geographic context. It shows where the 18 official monitoring stations are located and how their measured PM2.5 concentrations differ through the 24-hour period.
 
-Across all versions, missing measurements remain missing. I did not interpolate or invent PM2.5 values that were not present in the original dataset.
+Together, the visualizations move from direct evidence to temporal abstraction and then back to geographic context:
+
+**measured data → comparison → temporal expression → spatial context**
+
+I kept missing measurements missing throughout the project rather than interpolating or inventing values. The final visual forms are experimental, but they remain connected to the measurements contained in the committed source data.

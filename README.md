@@ -1,5 +1,27 @@
 # Hong Kong PM2.5 — Past 24 Hours
 
+## Spatial Distribution
+
+![Hong Kong PM2.5 Spatial Distribution](out/map-spatial.png)
+
+The spatial map places PM2.5 measurements at the official geographic locations of 18 Hong Kong air-quality monitoring stations.
+
+Each vertical column represents one monitoring station. Column height and colour both encode measured PM2.5 concentration: lower values appear toward blue and purple, while higher values move through pink and red toward yellow. A fixed scale calculated from the full 24-hour dataset is used so that the same PM2.5 value has the same visual meaning at every hour.
+
+The timeline allows the viewer to move through the past 24 hours, while Play/Pause reveals how the spatial pattern changes through time. Hovering identifies a monitoring station, and clicking a column reveals its exact PM2.5 measurement and time.
+
+The station locations come from the Hong Kong Government's official Air Quality Monitoring Network geographic dataset. The map therefore adds geographic context that the abstract particle field intentionally does not show.
+
+### Two views of the same phenomenon
+
+The project uses two complementary experimental views of the same measurements:
+
+**Particle Field — WHEN:** explores temporal change through an abstract data-driven form.
+
+**Spatial Map — WHERE:** places the measurements back at their official monitoring locations to reveal spatial differences across Hong Kong.
+
+The heatmap below acts as a more direct reference to the original station-by-time measurements.
+
 ## Particle Field
 
 ![Hong Kong PM2.5 Particle Field](out/particle-field.png)
@@ -48,6 +70,12 @@ https://www.aqhi.gov.hk/en/download/past-24-hours-pollutant-concentration.html
 
 The raw XML file is downloaded by `fetch.py` and stored as `data/hong-kong-air-quality-24h.xml`.
 
+For the spatial visualization, official monitoring-station coordinates come from the Hong Kong Government Common Spatial Data Infrastructure (CSDI), using the Air Quality Monitoring Network dataset.
+
+The geographic data is stored locally as `data/monitoring-stations.geojson`. All 18 PM2.5 monitoring stations used in the visualization were matched to official geographic coordinates.
+
+The map data used by the browser visualization is generated locally as `site/pm25-map-data.json`, combining the committed PM2.5 measurements with the official station coordinates.
+
 It contains hourly pollutant measurements from 18 air-quality monitoring stations. For this project, I use three fields: monitoring station, date and time, and PM2.5 concentration. PM2.5 is measured in µg/m³.
 
 Most stations contain 24 valid PM2.5 measurements in this downloaded dataset, while some measurements are missing. Tuen Mun has no valid PM2.5 measurements in this particular 24-hour dataset.
@@ -72,15 +100,17 @@ This means the visualization follows the transformation:
 
 ## What the visualization shows and hides
 
-The heatmap makes the original station-by-time structure easy to compare. It provides a relatively direct representation of the measurements.
+The three representations reveal different aspects of the same dataset.
 
-The particle field intentionally sacrifices some of that direct readability to explore how numerical environmental data can produce an expressive visual form.
+The heatmap makes the original station-by-time structure easy to compare and provides the most direct overview of the measurements.
 
-The interactive information panel restores access to exact measurements: selecting a particle reveals its monitoring station, PM2.5 value, and time.
+The particle field intentionally sacrifices geographic and numerical readability to explore how measured environmental data can generate form, colour, movement, and interaction.
 
-The visualization does not show the geographic positions of the monitoring stations. It also does not show other pollutants such as PM10, NO2, O3, or SO2.
+The spatial map restores geographic context by placing the measurements at the official locations of the 18 monitoring stations. Column height and colour reveal relative PM2.5 concentration, while the timeline reveals how this pattern changes over 24 hours.
 
-The particle geometry should not be interpreted as the physical shape of air pollution. It is a visual mapping generated from the dataset.
+The visualizations do not represent the continuous concentration of PM2.5 everywhere in Hong Kong. Measurements exist only at monitoring stations, so areas between stations should not be interpreted as measured pollution values.
+
+The project also does not show other pollutants such as PM10, NO2, O3, or SO2. The particle geometry and glowing map columns are visual encodings of measured PM2.5 values rather than literal representations of physical pollution particles.
 
 ## Animation and interaction
 
@@ -131,3 +161,8 @@ The interactive visualization is saved as `site/index.html`.
 Open it locally in a web browser, or view the published version:
 
 [Open the interactive particle field →](https://yanyan-hub57.github.io/hong-kong-air-quality/site/)
+
+Prepare the official monitoring-station geography:
+
+```bash
+uv run fetch_stations.py
