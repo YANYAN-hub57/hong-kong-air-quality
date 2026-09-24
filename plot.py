@@ -16,40 +16,42 @@ OUT = HERE / "out" / "plot.png"
 
 
 # --------------------------------------------------
-# 1. Read XML
+# 1. Read and parse PM2.5 data
 # --------------------------------------------------
 
-tree = ET.parse(DATA)
-root = tree.getroot()
+def load_pm25_data(path):
+    """Read the raw AQHI XML file and return PM2.5 measurements."""
+
+    tree = ET.parse(path)
+    root = tree.getroot()
+
+    records = []
+
+    for item in root.iter("PollutantConcentration"):
+        station = item.findtext("StationName")
+        datetime_text = item.findtext("DateTime")
+        pm25_text = item.findtext("PM2.5")
+
+        if not station or not datetime_text:
+            continue
+
+        time = datetime.strptime(
+            datetime_text,
+            "%a, %d %b %Y %H:%M:%S %z"
+        )
+
+        # Keep missing measurements as None
+        if not pm25_text or pm25_text.strip() == "-":
+            pm25 = None
+        else:
+            pm25 = float(pm25_text)
+
+        records.append((station, time, pm25))
+
+    return records
 
 
-# --------------------------------------------------
-# 2. Collect PM2.5 measurements
-# --------------------------------------------------
-
-records = []
-
-for item in root.iter("PollutantConcentration"):
-
-    station = item.findtext("StationName")
-    datetime_text = item.findtext("DateTime")
-    pm25_text = item.findtext("PM2.5")
-
-    if not station or not datetime_text:
-        continue
-
-    time = datetime.strptime(
-        datetime_text,
-        "%a, %d %b %Y %H:%M:%S %z"
-    )
-
-    # Missing data becomes None
-    if not pm25_text or pm25_text.strip() == "-":
-        pm25 = None
-    else:
-        pm25 = float(pm25_text)
-
-    records.append((station, time, pm25))
+records = load_pm25_data(DATA)
 
 
 # --------------------------------------------------
