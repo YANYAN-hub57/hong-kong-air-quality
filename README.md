@@ -2,7 +2,11 @@
 
 ## Spatial Distribution
 
-![Hong Kong PM2.5 Spatial Distribution](out/map-spatial.png)
+### [Open the interactive PM2.5 spatial map](https://yanyan-hub57.github.io/hong-kong-air-quality/site/map.html)
+
+Explore PM2.5 measurements across 18 official Hong Kong air-quality monitoring stations over the past 24 hours.
+
+The spatial map places PM2.5 measurements at the official geographic locations of 18 Hong Kong air-quality monitoring stations.
 
 The spatial map places PM2.5 measurements at the official geographic locations of 18 Hong Kong air-quality monitoring stations.
 
